@@ -8,6 +8,9 @@ https://github.com/Percona-Lab/tpcc-mysql
 官网下载源码。
 把源码存放到需要测试mysql的服务器上。
 
+ubuntu系统需要安装libmysqlclient-dev
+apt install libmysqlclient-dev
+
 设置mysql路径
 我得MySQL是用源安装的，我得路径为：
 export PATH=/usr/bin/mysql:$PATH
