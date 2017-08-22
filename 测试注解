@@ -1,0 +1,116 @@
+mysql基准测试工具tpcc-mysql的安装和使用
+1.tpcc-mysql介绍：
+TPC(Tracsaction Processing Performance Council) 事务处理性能协会是一个评价大型数据库系统软硬件性能的非盈利的组织,TPC-C是TPC协会制定的，
+用来测试典型的复杂OLTP系统的性能。Tpcc-mysql是percona基于tpcc衍生出来的产品，专用于mysql基准测试.
+2.官网地址：
+https://github.com/Percona-Lab/tpcc-mysql
+3.安装方法：
+官网下载源码。
+把源码存放到需要测试mysql的服务器上。
+
+设置mysql路径
+我得MySQL是用源安装的，我得路径为：
+export PATH=/usr/bin/mysql:$PATH
+如果找不到mysql，执行查找命令查找下，查找命令，参考如下：
+find / -name mysql
+
+进入源码目录
+执行make
+
+注意：我执行的时候报错：
+/bin/sh: mysql_config: 未找到命令
+找不到mysql_config。
+用命令检查下：
+whereis mysql_config
+是没有。
+我后面检查发现，我是没有安装mysql-devel,安装mysql-devel后。
+再执行
+不再报错。
+
+编译完成后，会生成两个文件:
+
+tpcc_start
+tpcc_load
+
+tpcc_load是导入数据的脚本
+tpcc_start是执行测试的脚本
+
+到此安装结束。
+
+4.导入数据
+建议测试数据库：
+mysqladmin -uroot -p create tpcc1000
+mysql -uroot -p tpcc1000 <create_table.sql
+mysql -uroot -p tpcc1000<add_fkey_idx.sql
+
+导入数据：
+./tpcc_load -h127.0.0.1 -d tpcc1000 -u root -p "123456" -w 100
+创建100个仓库并填充数据。
+数据是通过load.sh脚本加载的
+我用的是虚机测试，速度好慢，整个过程持续了大约2个小时。
+最后出现：
+...DATA LOADING COMPLETED SUCCESSFULLY.
+导入成功。
+
+5.执行测试
+命令：
+./tpcc_start -h 127.0.0.1 -p 3306 -d tpcc1000 -u root -p "123456" -w 10 -c 10 -r 100 -l 300 -i 20 -f /var/log/tpcc_mysql.log -t /var/log/tpcc_mysql.rtx
+参数说明：
+-w warehouse 仓库；
+-c 连接数；
+-r warmup_time:指定预热时间，以秒为单位，默认是10秒，主要目的是为了将数据加载到内存；
+-l running_time:指定测试执行时间，以秒为单位，默认是20秒；
+-i report_interval:指定生产报告的时间间隔，默认是10秒，我这里设置了20秒；
+-f report_file:将测试中各项操作的记录输出到指定文件内保存；
+-t trx_file:输出更详细的操作信息到指定文件内保存；
+
+执行结果：
+
+20, trx: 164, 95%: 1487.825, 99%: 1991.466, max_rt: 2246.449, 165|1743.200, 17|1277.349, 16|4179.249, 16|4035.317
+
+详细解释：
+20 是我上面设置的时间间隔
+164 20秒内执行了164次事务
+95% 事务平均响应时间为1487秒
+99% 事务平均响应时间为1991秒
+max_rt 事务最长响应时间为2246秒
+
+[0] sc:1 lt:2644 rt:0 fl:0 avg_rt: 947.1 (5)
+[1] sc:164 lt:2477 rt:0 fl:0 avg_rt: 209.1 (5)
+[2] sc:3 lt:261 rt:0 fl:0 avg_rt: 418.6 (5)
+[3] sc:0 lt:264 rt:0 fl:0 avg_rt: 1932.7 (80)
+[4] sc:0 lt:265 rt:0 fl:0 avg_rt: 1226.4 (20)
+in 300 sec.
+
+[0] sc:1 lt:2644 rt:0 fl:0
+[1] sc:164 lt:2477 rt:0 fl:0
+[2] sc:3 lt:261 rt:0 fl:0
+[3] sc:0 lt:264 rt:0 fl:0
+[4] sc:0 lt:265 rt:0 fl:0
+
+(all must be [OK])
+[transaction percentage]
+Payment: 43.44% (>=43.0%) [OK]
+Order-Status: 4.34% (>= 4.0%) [OK]
+Delivery: 4.34% (>= 4.0%) [OK]
+Stock-Level: 4.36% (>= 4.0%) [OK]
+[response time (at least 90% passed)]
+New-Order: 0.04% [NG] *
+Payment: 6.21% [NG] *
+Order-Status: 1.14% [NG] *
+Delivery: 0.00% [NG] *
+Stock-Level: 0.00% [NG] *
+
+             529.000 TpmC
+解释：
+sc:即seccess,操作成功的数量。
+lt:即late，指操作出现延迟的数量。
+rt:即retry，指操作重试的数量。
+fl:即failure，指操作失败的数量。
+
+我的是vmware虚机测试。
+各项数据太烂也算正常。
+
+有参考文档：
+http://blog.csdn.net/yumushui/article/details/37764467
+主要是英文不太好，参考了他的参数英文解释翻译。
